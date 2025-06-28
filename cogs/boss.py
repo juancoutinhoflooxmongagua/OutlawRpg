@@ -2,6 +2,7 @@ import discord
 from discord import app_commands
 from discord.ext import commands
 import time
+import random
 
 from utils.game_logic import get_player_data, save_boss_data, get_boss_data
 from config import (
@@ -18,6 +19,60 @@ class Boss(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
+    async def boss_attack_players(self, interaction: discord.Interaction):
+        """
+        O chefe ataca um grupo de jogadores ativos.
+        """
+        boss_data = get_boss_data()
+        if not boss_data.get("ativo"):
+            return
+
+        # Encontra todos os jogadores que não estão AFK e estão online no servidor
+        online_players = []
+        guild = interaction.guild
+        if not guild:
+            return
+
+        for user_id, player_data in self.bot.fichas_db.items():
+            if (
+                player_data.get("hp", 0) > 0
+                and player_data.get("afk_until", 0) < time.time()
+            ):
+                member = guild.get_member(int(user_id))
+                if member and member.status != discord.Status.offline:
+                    online_players.append((user_id, player_data))
+
+        # Seleciona até 3 jogadores para atacar
+        num_to_attack = min(len(online_players), 3)
+        if num_to_attack == 0:
+            return
+
+        targets = random.sample(online_players, num_to_attack)
+        attacked_players_info = []
+
+        for user_id, player_data in targets:
+            dano_sofrido = max(1, BOSS_INFO["atk"] - player_data["defesa"])
+            player_data["hp"] -= dano_sofrido
+            member = guild.get_member(int(user_id))
+
+            attacked_players_info.append(
+                f"{member.mention} sofreu **{dano_sofrido}** de dano!"
+            )
+
+            if player_data["hp"] <= 0:
+                player_data["hp"] = 0
+                attacked_players_info.append(f"**{member.mention} foi derrotado!** 💀")
+
+        self.bot.save_fichas()
+
+        if attacked_players_info:
+            embed = discord.Embed(
+                title=f"A Fúria do {BOSS_INFO['nome']}!",
+                description="\n".join(attacked_players_info),
+                color=COR_EMBED_CHEFE,
+            )
+            await interaction.channel.send(embed=embed)
+
     @app_commands.command(
         name="invocar-boss",
         description="Usa um item para invocar um chefe mundial.",
@@ -25,7 +80,7 @@ class Boss(commands.Cog):
     async def invocar_boss(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         player_data = get_player_data(self.bot, user_id)
-        item_id_invocacao = "invocador_colosso"  # ID do item de invocação
+        item_id_invocacao = "invocador_colosso"
 
         if not player_data:
             return await interaction.response.send_message(
@@ -44,13 +99,11 @@ class Boss(commands.Cog):
                 "👹 Um chefe mundial já está ativo!", ephemeral=True
             )
 
-        # Consome o item
         inventario[item_id_invocacao] -= 1
         if inventario[item_id_invocacao] <= 0:
             del inventario[item_id_invocacao]
         self.bot.save_fichas()
 
-        # Ativa o boss
         novo_boss_data = {
             "ativo": True,
             "id": BOSS_INFO["id"],
@@ -66,9 +119,7 @@ class Boss(commands.Cog):
             description=f"{interaction.user.mention} usou um item de invocação e despertou a fúria do Colosso!\n\nUse `/atacar-boss` para lutar!",
             color=COR_EMBED_CHEFE,
         )
-        embed.set_thumbnail(
-            url="https://i.imgur.com/your_boss_image.gif"
-        )  # Coloque uma imagem para seu boss
+        embed.set_thumbnail(url="https://i.imgur.com/your_boss_image.gif")
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
@@ -94,11 +145,9 @@ class Boss(commands.Cog):
                 "💀 Você está derrotado e não pode atacar.", ephemeral=True
             )
 
-        # Lógica de dano
         dano_causado = max(1, player_data["atk"] - BOSS_INFO["defesa"])
         boss_data["hp_atual"] -= dano_causado
 
-        # Registra o dano do atacante
         atacantes = boss_data.setdefault("atacantes", {})
         atacantes[user_id] = atacantes.get(user_id, 0) + dano_causado
 
@@ -111,9 +160,11 @@ class Boss(commands.Cog):
         )
         await interaction.response.send_message(embed=embed)
 
-        # Verifica se o boss foi derrotado
         if boss_data["hp_atual"] <= 0:
             await self.finalizar_boss(interaction.channel)
+        else:
+            # O chefe contra-ataca
+            await self.boss_attack_players(interaction)
 
     async def finalizar_boss(self, channel):
         boss_data = get_boss_data()
