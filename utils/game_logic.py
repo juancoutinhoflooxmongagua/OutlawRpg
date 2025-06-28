@@ -23,9 +23,10 @@ def salvar_dados(dados, arquivo):
 
 def get_player_data(bot, user_id):
     user_id = str(user_id)
-    if user_id not in bot.fichas:
+    # CORRIGIDO: Acessa bot.fichas_db em vez de bot.fichas
+    if user_id not in bot.fichas_db:
         return None
-    return bot.fichas[user_id]
+    return bot.fichas_db[user_id]
 
 
 def get_hp_max(player_data):

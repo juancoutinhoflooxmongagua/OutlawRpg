@@ -1,10 +1,10 @@
 {
     "1388233191244042310": {
         "nome": "\u23e4\u035f\u035e\u035f\uaab6\u0362Red X\uaac2",
-        "level": 1,
-        "xp": 294,
-        "dinheiro": 4524,
-        "hp": 105,
+        "level": 2,
+        "xp": 139,
+        "dinheiro": 4374,
+        "hp": 130,
         "atk": 10,
         "defesa": 5,
         "speed": 10,
@@ -26,7 +26,7 @@
         "em_furia": false,
         "habilidade_ativa": false,
         "cooldowns": {
-            "cacar": "2025-06-27T20:14:44.622309",
+            "cacar": 1751072578,
             "batalhar": "2025-06-27T20:14:19.745362",
             "crime": "2025-06-27T20:36:05.766421",
             "poder_furia": "2025-06-27T20:23:05.331166",

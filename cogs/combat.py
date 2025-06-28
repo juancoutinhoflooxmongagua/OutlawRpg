@@ -117,7 +117,7 @@ class Combat(commands.Cog):
 
         self.bot.save_fichas()
 
-        novo_level = verificar_level_up(self.bot, user_id)
+        novo_level = verificar_level_up(player_data)
         if novo_level:
             await interaction.followup.send(
                 f"🎉 Parabéns {interaction.user.mention}, você subiu para o **nível {novo_level}**!",
@@ -253,5 +253,6 @@ class Combat(commands.Cog):
         self.bot.save_fichas()
 
 
+# --- FUNÇÃO DE SETUP ESSENCIAL PARA CARREGAR A COG ---
 async def setup(bot):
     await bot.add_cog(Combat(bot))
