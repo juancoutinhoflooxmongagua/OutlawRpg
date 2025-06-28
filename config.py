@@ -1,9 +1,10 @@
+# config.py
+
 import discord
 import os
 
 # --- CONFIGURAÇÕES GERAIS ---
 # O token é carregado de forma segura a partir das variáveis de ambiente (arquivo .env)
-# ATENÇÃO: O token antigo foi exposto e deve ser resetado no Portal do Desenvolvedor do Discord.
 TOKEN = os.getenv("DISCORD_TOKEN")
 
 # Verificação para garantir que o token foi carregado
@@ -78,7 +79,9 @@ HABILIDADES = {
 }
 
 # --- LOJA DE ITENS ---
-LOJA_ITENS = {
+# Ponto de Atenção: O erro no seu log mencionava 'LOJA_ITENS', mas a variável aqui é 'ITENS_LOJA'.
+# Garanta que todos os seus arquivos (como cogs/items.py) importem 'ITENS_LOJA' para manter o padrão.
+ITENS_LOJA = {
     "consumiveis": {
         "pocao_vida": {
             "id": "pocao_vida",

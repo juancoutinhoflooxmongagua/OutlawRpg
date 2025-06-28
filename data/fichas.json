@@ -3,10 +3,10 @@
         "nome": "JuanXK",
         "level": 7,
         "xp": 270,
-        "hp": 87,
+        "hp": 0,
         "atk": 15,
         "defesa": 6,
-        "dinheiro": 16364,
+        "dinheiro": 3550,
         "estilo_luta": "Atirador (Armas de Fogo)",
         "inventario": {},
         "cooldowns": {
@@ -18,7 +18,7 @@
         "afk_until": 1751084496,
         "created_at": 1751072886.1347885,
         "aprimoramentos": {
-            "atk": 8,
+            "atk": 9,
             "defesa": 0
         }
     },
@@ -36,5 +36,30 @@
         "bounty": 0,
         "afk_until": 0,
         "created_at": 1751073473.2601287
+    },
+    "945867324085374976": {
+        "nome": "Adrian_fds",
+        "level": 1,
+        "xp": 260,
+        "hp": 110,
+        "atk": 10,
+        "defesa": 10,
+        "dinheiro": 315,
+        "estilo_luta": "Espadachim (Espadas)",
+        "inventario": {
+            "pocao_vida": 1
+        },
+        "cooldowns": {
+            "cacar": 1751075671,
+            "batalhar": 1751075976,
+            "daily": 1751161848
+        },
+        "bounty": 0,
+        "afk_until": 0,
+        "created_at": 1751075364.551594,
+        "aprimoramentos": {
+            "atk": 0,
+            "defesa": 0
+        }
     }
 }

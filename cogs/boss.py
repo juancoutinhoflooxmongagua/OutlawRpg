@@ -1,3 +1,5 @@
+# cogs/boss.py
+
 import discord
 from discord import app_commands
 from discord.ext import commands, tasks
@@ -5,7 +7,8 @@ import time
 import random
 import asyncio
 
-from utils.game_logic import get_player_data, save_boss_data, get_boss_data
+# Corrigido: Importando get_stat para usar os atributos atualizados do jogador
+from utils.game_logic import get_player_data, save_boss_data, get_boss_data, get_stat
 from config import (
     COR_EMBED_SUCESSO,
     COR_EMBED_CHEFE,
@@ -17,47 +20,47 @@ from config import (
 class Boss(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
-        # Inicia a tarefa em segundo plano para o ataque do chefe.
         self.boss_attack_loop.start()
 
     def cog_unload(self):
-        # Garante que a tarefa seja cancelada se o cog for descarregado.
         self.boss_attack_loop.cancel()
 
     async def _execute_boss_attack(self, channel: discord.TextChannel):
         """
-        Lógica de ataque do chefe. Ataca até 3 jogadores ativos aleatoriamente.
-        Esta função foi refatorada para receber um objeto 'channel' em vez de 'interaction'.
+        Lógica de ataque do chefe. Ataca até 3 jogadores que o atacaram recentemente.
         """
         boss_data = get_boss_data()
-        if not boss_data.get("ativo"):
+        if not boss_data.get("ativo") or not boss_data.get("atacantes"):
             return
 
         guild = channel.guild
         if not guild:
             return
 
-        # Encontra todos os jogadores online e com HP > 0 no servidor
-        online_players = []
-        # Usamos .copy() para evitar problemas ao iterar sobre um dicionário que pode ser modificado
-        for user_id, player_data in self.bot.fichas_db.copy().items():
-            if player_data.get("hp", 0) > 0:
-                member = guild.get_member(int(user_id))
-                # Considera apenas jogadores que estão no servidor e não offline.
-                if member and member.status != discord.Status.offline:
-                    online_players.append((user_id, player_data))
+        # --- LÓGICA DE ALVO CORRIGIDA ---
+        # Pega os IDs dos jogadores que atacaram o chefe
+        potential_target_ids = list(boss_data["atacantes"].keys())
 
-        # Se não houver jogadores para atacar, não faz nada.
-        if not online_players:
+        # Filtra para garantir que o jogador ainda está no servidor e com HP > 0
+        valid_targets = []
+        for user_id in potential_target_ids:
+            member = guild.get_member(int(user_id))
+            player_data = get_player_data(self.bot, user_id)
+            if member and player_data and player_data.get("hp", 0) > 0:
+                valid_targets.append((user_id, player_data))
+
+        if not valid_targets:
             return
 
         # Seleciona até 3 jogadores para atacar
-        num_to_attack = min(len(online_players), 3)
-        targets = random.sample(online_players, num_to_attack)
+        num_to_attack = min(len(valid_targets), 3)
+        targets_to_attack = random.sample(valid_targets, num_to_attack)
         attacked_players_info = []
 
-        for user_id, player_data in targets:
-            dano_sofrido = max(1, BOSS_INFO["atk"] - player_data.get("defesa", 0))
+        for user_id, player_data in targets_to_attack:
+            # Corrigido: Usa get_stat para calcular a defesa real do jogador
+            defesa_jogador = get_stat(player_data, "defesa")
+            dano_sofrido = max(1, BOSS_INFO["atk"] - defesa_jogador)
             player_data["hp"] -= dano_sofrido
             member = guild.get_member(int(user_id))
 
@@ -69,7 +72,6 @@ class Boss(commands.Cog):
                 player_data["hp"] = 0
                 attacked_players_info.append(f"**{member.mention} foi derrotado!** 💀")
 
-        # Salva os dados dos jogadores após o ataque.
         self.bot.save_fichas()
 
         if attacked_players_info:
@@ -80,21 +82,18 @@ class Boss(commands.Cog):
             )
             await channel.send(embed=embed)
 
-    @tasks.loop(seconds=45)  # O chefe ataca a cada 45 segundos
+    @tasks.loop(seconds=45)
     async def boss_attack_loop(self):
         boss_data = get_boss_data()
-        # A tarefa só executa a lógica de ataque se o chefe estiver ativo.
         if boss_data.get("ativo"):
             channel_id = boss_data.get("channel_id")
             if channel_id:
                 channel = self.bot.get_channel(channel_id)
-                # Verifica se o canal ainda existe antes de enviar a mensagem.
                 if channel and boss_data.get("hp_atual", 0) > 0:
                     await self._execute_boss_attack(channel)
 
     @boss_attack_loop.before_loop
     async def before_boss_attack_loop(self):
-        # Espera o bot estar completamente pronto antes de iniciar o loop.
         await self.bot.wait_until_ready()
 
     @app_commands.command(
@@ -143,10 +142,11 @@ class Boss(commands.Cog):
             description=f"{interaction.user.mention} usou um item de invocação e despertou a fúria do Colosso!\n\nUse `/atacar-boss` para lutar!",
             color=COR_EMBED_CHEFE,
         )
-        embed.set_thumbnail(url=BOSS_INFO.get("imagem_url", ""))
+        # Assumindo que você possa ter uma imagem para o boss no config
+        if BOSS_INFO.get("imagem_url"):
+            embed.set_thumbnail(url=BOSS_INFO["imagem_url"])
         await interaction.response.send_message(embed=embed)
 
-        # Opcional: fazer o chefe atacar logo após ser invocado (após um pequeno delay)
         await asyncio.sleep(5)
         await self._execute_boss_attack(interaction.channel)
 
@@ -173,7 +173,9 @@ class Boss(commands.Cog):
                 "💀 Você está derrotado e não pode atacar.", ephemeral=True
             )
 
-        dano_causado = max(1, player_data["atk"] - BOSS_INFO.get("defesa", 0))
+        # Corrigido: Usa get_stat para que o dano considere os aprimoramentos
+        ataque_jogador = get_stat(player_data, "atk")
+        dano_causado = max(1, ataque_jogador - BOSS_INFO.get("defesa", 0))
         boss_data["hp_atual"] -= dano_causado
 
         atacantes = boss_data.setdefault("atacantes", {})
@@ -191,21 +193,17 @@ class Boss(commands.Cog):
         if boss_data["hp_atual"] <= 0:
             await self.finalizar_boss(interaction.channel)
         else:
-            # O chefe contra-ataca imediatamente após o ataque do jogador.
-            await asyncio.sleep(1)  # Pequeno delay para o fluxo ficar mais natural
+            await asyncio.sleep(2)
             await self._execute_boss_attack(interaction.channel)
 
     async def finalizar_boss(self, channel):
         # A lógica de recompensas seria adicionada aqui.
-        # Por enquanto, apenas finaliza o chefe.
         embed = discord.Embed(
             title=f"🏆 {BOSS_INFO['nome']} FOI DERROTADO! 🏆",
             description="O grande chefe caiu! As recompensas foram distribuídas aos maiores atacantes.",
             color=COR_EMBED_SUCESSO,
         )
         await channel.send(embed=embed)
-
-        # Reseta os dados do chefe, marcando-o como inativo.
         save_boss_data({"ativo": False})
 
 
