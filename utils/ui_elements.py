@@ -1,9 +1,10 @@
 # /utils/ui_elements.py
 import discord
+import time
 from .game_logic import (
     get_player_data,
     get_hp_max,
-    get_stat,
+    get_stat,  # <-- Importação necessária
     criar_barra,
     xp_para_level_up,
 )
@@ -35,7 +36,7 @@ class FichaView(discord.ui.View):
 
     def create_attributes_embed(self) -> discord.Embed:
         embed = self._create_base_embed()
-        player_data = get_player_data(self.bot, self.target_user.id)
+        player_data = get_player_data(self.bot, str(self.target_user.id))
 
         hp_max = get_hp_max(player_data)
         xp_necessario = xp_para_level_up(player_data["level"])
@@ -48,7 +49,7 @@ class FichaView(discord.ui.View):
 
         bounty_info = player_data.get("bounty", 0)
         if bounty_info > 0:
-            status_str = f"FORAGIDO ({MOEDA_EMOJI} {bounty_info})"
+            status_str = f"**FORAGIDO** ({MOEDA_EMOJI} {bounty_info})"
 
         embed.description = (
             f"**{player_data['estilo_luta']}** • Nível **{player_data['level']}**"
@@ -79,7 +80,7 @@ class FichaView(discord.ui.View):
 
     def create_inventory_embed(self) -> discord.Embed:
         embed = self._create_base_embed(" - Inventário")
-        player_data = get_player_data(self.bot, self.target_user.id)
+        player_data = get_player_data(self.bot, str(self.target_user.id))
         inventario = player_data.get("inventario", {})
         if not inventario:
             embed.description = "O inventário está vazio."

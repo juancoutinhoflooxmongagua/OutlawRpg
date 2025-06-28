@@ -1,88 +1,78 @@
-# /cogs/combat.py
 import discord
 import random
 import asyncio
 from discord import app_commands
 from discord.ext import commands
-from datetime import datetime, timedelta
 
 from utils.game_logic import (
-    fichas_db,
-    salvar_fichas,
-    get_dynamic_stat,
+    get_player_data,
+    check_cooldown,
+    set_cooldown,
     get_hp_max,
-    gifs_db,
     verificar_level_up,
 )
 from config import (
-    COR_EMBED,
-    MSG_SEM_FICHA,
-    ATAQUES_ESPECIAIS,
-    ANIMAIS,
-    CAVALEIROS,
+    COR_EMBED_PADRAO,
+    COR_EMBED_ERRO,
+    COR_EMBED_SUCESSO,
+    INIMIGOS,
     COOLDOWN_CACAR,
     COOLDOWN_BATALHAR,
+    MOEDA_EMOJI,
     BOUNTY_BASE,
     BOUNTY_PERCENTUAL_VITIMA,
-    MOEDA_EMOJI,
 )
 
 
 class Combat(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
         self.bot = bot
 
-    def _checar_cooldown(self, jogador, comando, segundos):
-        cooldowns = jogador.setdefault("cooldowns", {})
-        if comando in cooldowns:
-            tempo_limite = datetime.fromisoformat(cooldowns[comando]) + timedelta(
-                seconds=segundos
-            )
-            if datetime.now() < tempo_limite:
-                tempo_restante = tempo_limite - datetime.now()
-                return f"⏳ Você precisa esperar mais **{int(tempo_restante.total_seconds())}s**."
-        return None
+    async def _run_pve_battle(
+        self, interaction: discord.Interaction, player_data: dict, enemy_type: str
+    ):
+        user_id = str(interaction.user.id)
+        inimigo = random.choice(INIMIGOS[enemy_type]).copy()
 
-    async def _run_pve_battle(self, interaction: discord.Interaction, jogador, inimigo):
-        hp_max_jogador = get_hp_max(str(interaction.user.id))
+        hp_max_jogador = get_hp_max(player_data)
+        hp_jogador_atual = player_data["hp"]
+        hp_inimigo_atual = inimigo["hp"]
+        hp_max_inimigo = inimigo["hp"]
+
         log_batalha = [
             f"⚔️ {interaction.user.mention} encontrou um(a) **{inimigo['nome']}**!"
         ]
 
         embed = discord.Embed(
-            title="⚔️ Batalha Iniciada!",
+            title="⚔️ Batalha em Andamento!",
             description="\n".join(log_batalha),
             color=discord.Color.red(),
         )
         embed.add_field(
-            name="Seu HP", value=f"{jogador['hp']}/{hp_max_jogador}", inline=True
+            name="Seu HP", value=f"{hp_jogador_atual}/{hp_max_jogador}", inline=True
         )
         embed.add_field(
             name=f"HP do {inimigo['nome']}",
-            value=f"{inimigo['hp']}/{inimigo['hp']}",
+            value=f"{hp_inimigo_atual}/{hp_max_inimigo}",
             inline=True,
         )
-
         await interaction.response.send_message(embed=embed)
+        message = await interaction.original_response()
 
-        while jogador["hp"] > 0 and inimigo["hp"] > 0:
+        while hp_jogador_atual > 0 and hp_inimigo_atual > 0:
             await asyncio.sleep(2)
 
             # Turno do jogador
-            dano_causado = max(
-                1, get_dynamic_stat(str(interaction.user.id), "atk") - inimigo["defesa"]
-            )
-            inimigo["hp"] -= dano_causado
+            dano_causado = max(1, player_data["atk"] - inimigo["defesa"])
+            hp_inimigo_atual -= dano_causado
             log_batalha.append(f"➡️ Você atacou e causou **{dano_causado}** de dano!")
 
-            if inimigo["hp"] <= 0:
+            if hp_inimigo_atual <= 0:
                 break
 
             # Turno do inimigo
-            dano_sofrido = max(
-                1, inimigo["atk"] - get_dynamic_stat(str(interaction.user.id), "defesa")
-            )
-            jogador["hp"] -= dano_sofrido
+            dano_sofrido = max(1, inimigo["atk"] - player_data["defesa"])
+            hp_jogador_atual -= dano_sofrido
             log_batalha.append(
                 f"⬅️ O **{inimigo['nome']}** atacou e causou **{dano_sofrido}** de dano!"
             )
@@ -91,45 +81,48 @@ class Combat(commands.Cog):
             embed.set_field_at(
                 0,
                 name="Seu HP",
-                value=f"{max(0, jogador['hp'])}/{hp_max_jogador}",
+                value=f"{max(0, hp_jogador_atual)}/{hp_max_jogador}",
                 inline=True,
             )
             embed.set_field_at(
                 1,
                 name=f"HP do {inimigo['nome']}",
-                value=f"{max(0, inimigo['hp'])}/{inimigo['hp']}",
+                value=f"{max(0, hp_inimigo_atual)}/{hp_max_inimigo}",
                 inline=True,
             )
-            await interaction.edit_original_response(embed=embed)
+            await message.edit(embed=embed)
+
+        player_data["hp"] = max(0, hp_jogador_atual)
 
         await asyncio.sleep(2)
 
-        if jogador["hp"] <= 0:
-            jogador["hp"] = 0
-            embed.color = discord.Color.dark_red()
+        if hp_jogador_atual <= 0:
+            embed.color = COR_EMBED_ERRO
             embed.title = "💀 VOCÊ FOI DERROTADO 💀"
-            log_batalha.append("\nUse `/reviver` para voltar.")
+            log_batalha.append("\nUse `/reviver` para voltar à ação.")
         else:
-            recompensa_xp = inimigo["xp_recompensa"]
-            recompensa_dinheiro = inimigo["dinheiro_recompensa"]
-            jogador["xp"] += recompensa_xp
-            jogador["dinheiro"] += recompensa_dinheiro
-            embed.color = discord.Color.gold()
+            recompensa_xp = inimigo["xp"]
+            recompensa_dinheiro = inimigo["dinheiro"]
+            player_data["xp"] += recompensa_xp
+            player_data["dinheiro"] += recompensa_dinheiro
+
+            embed.color = COR_EMBED_SUCESSO
             embed.title = "🏆 VITÓRIA! 🏆"
             log_batalha.append(
-                f"\nVocê ganhou **{recompensa_xp} XP** e **${recompensa_dinheiro}**!"
+                f"\nVocê ganhou **{recompensa_xp} XP** e **{MOEDA_EMOJI} {recompensa_dinheiro}**!"
             )
 
         embed.description = "\n".join(log_batalha[-5:])
-        await interaction.edit_original_response(embed=embed)
+        await message.edit(embed=embed)
 
-        novo_level = verificar_level_up(str(interaction.user.id))
+        self.bot.save_fichas()
+
+        novo_level = verificar_level_up(self.bot, user_id)
         if novo_level:
             await interaction.followup.send(
-                f"🎉 Parabéns {interaction.user.mention}, você subiu para o **nível {novo_level}**!"
+                f"🎉 Parabéns {interaction.user.mention}, você subiu para o **nível {novo_level}**!",
+                ephemeral=False,
             )
-
-        salvar_fichas()
 
     @app_commands.command(
         name="cacar",
@@ -137,147 +130,127 @@ class Combat(commands.Cog):
     )
     async def cacar(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        if user_id not in fichas_db:
+        player_data = get_player_data(self.bot, user_id)
+        if not player_data:
             return await interaction.response.send_message(
-                MSG_SEM_FICHA, ephemeral=True
+                "❌ Você precisa ter uma ficha para usar este comando.", ephemeral=True
+            )
+        if player_data["hp"] <= 0:
+            return await interaction.response.send_message(
+                "❌ Você está derrotado e não pode caçar. Use `/reviver`.",
+                ephemeral=True,
             )
 
-        jogador = fichas_db[user_id]
-        if jogador["hp"] <= 0:
+        cooldown = check_cooldown(player_data, "cacar")
+        if cooldown > 0:
             return await interaction.response.send_message(
-                "❌ Você está derrotado!", ephemeral=True
+                f"⏳ Você precisa esperar mais `{int(cooldown)}s` para caçar novamente.",
+                ephemeral=True,
             )
 
-        erro_cooldown = self._checar_cooldown(jogador, "cacar", COOLDOWN_CACAR)
-        if erro_cooldown:
-            return await interaction.response.send_message(
-                erro_cooldown, ephemeral=True
-            )
-
-        jogador["cooldowns"]["cacar"] = datetime.now().isoformat()
-        inimigo = random.choice(ANIMAIS).copy()
-        await self._run_pve_battle(interaction, jogador, inimigo)
+        set_cooldown(player_data, "cacar", COOLDOWN_CACAR)
+        self.bot.save_fichas()
+        await self._run_pve_battle(interaction, player_data, "cacar")
 
     @app_commands.command(
         name="batalhar", description="Enfrente cavaleiros para ganhar XP e dinheiro."
     )
     async def batalhar(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
-        if user_id not in fichas_db:
+        player_data = get_player_data(self.bot, user_id)
+        if not player_data:
             return await interaction.response.send_message(
-                MSG_SEM_FICHA, ephemeral=True
+                "❌ Você precisa ter uma ficha para usar este comando.", ephemeral=True
+            )
+        if player_data["hp"] <= 0:
+            return await interaction.response.send_message(
+                "❌ Você está derrotado e não pode batalhar. Use `/reviver`.",
+                ephemeral=True,
             )
 
-        jogador = fichas_db[user_id]
-        if jogador["hp"] <= 0:
+        cooldown = check_cooldown(player_data, "batalhar")
+        if cooldown > 0:
             return await interaction.response.send_message(
-                "❌ Você está derrotado!", ephemeral=True
+                f"⏳ Você precisa esperar mais `{int(cooldown)}s` para batalhar novamente.",
+                ephemeral=True,
             )
 
-        erro_cooldown = self._checar_cooldown(jogador, "batalhar", COOLDOWN_BATALHAR)
-        if erro_cooldown:
-            return await interaction.response.send_message(
-                erro_cooldown, ephemeral=True
-            )
+        set_cooldown(player_data, "batalhar", COOLDOWN_BATALHAR)
+        self.bot.save_fichas()
+        await self._run_pve_battle(interaction, player_data, "batalhar")
 
-        jogador["cooldowns"]["batalhar"] = datetime.now().isoformat()
-        inimigo = random.choice(CAVALEIROS).copy()
-        await self._run_pve_battle(interaction, jogador, inimigo)
-
-    @app_commands.command(
-        name="atacar", description="Ataca outro jogador em um combate PvP."
-    )
-    @app_commands.choices(
-        tipo_ataque=[
-            app_commands.Choice(name="Ataque Básico", value="basico"),
-            app_commands.Choice(name="Ataque Especial", value="especial"),
-        ]
-    )
-    async def atacar(
-        self,
-        interaction: discord.Interaction,
-        alvo: discord.Member,
-        tipo_ataque: app_commands.Choice[str],
-    ):
-        atacante_id, alvo_id = str(interaction.user.id), str(alvo.id)
+    @app_commands.command(name="atacar", description="Ataca outro jogador.")
+    async def atacar(self, interaction: discord.Interaction, alvo: discord.Member):
+        atacante_id = str(interaction.user.id)
+        alvo_id = str(alvo.id)
 
         # Validações
-        if atacante_id not in fichas_db:
+        if atacante_id == alvo_id:
             return await interaction.response.send_message(
-                MSG_SEM_FICHA, ephemeral=True
+                "❌ Você não pode atacar a si mesmo.", ephemeral=True
             )
-        if alvo_id not in fichas_db:
+        if alvo.bot:
+            return await interaction.response.send_message(
+                "❌ Você não pode atacar bots.", ephemeral=True
+            )
+
+        atacante_data = get_player_data(self.bot, atacante_id)
+        alvo_data = get_player_data(self.bot, alvo_id)
+
+        if not atacante_data:
+            return await interaction.response.send_message(
+                "❌ Você não tem uma ficha para atacar.", ephemeral=True
+            )
+        if not alvo_data:
             return await interaction.response.send_message(
                 f"❌ {alvo.display_name} não possui uma ficha.", ephemeral=True
             )
-        if alvo.bot or alvo.id == interaction.user.id:
+
+        if atacante_data["hp"] <= 0:
             return await interaction.response.send_message(
-                "❌ Alvo inválido.", ephemeral=True
+                "❌ Você está derrotado e não pode atacar.", ephemeral=True
+            )
+        if alvo_data["hp"] <= 0:
+            return await interaction.response.send_message(
+                f"❌ {alvo.display_name} já está derrotado.", ephemeral=True
             )
 
-        atacante, defensor = fichas_db[atacante_id], fichas_db[alvo_id]
-        if atacante["hp"] <= 0:
-            return await interaction.response.send_message(
-                "❌ Você está incapacitado.", ephemeral=True
-            )
-        if defensor["hp"] <= 0:
-            return await interaction.response.send_message(
-                f"❌ {alvo.display_name} já está incapacitado.", ephemeral=True
-            )
+        # Cálculo do dano
+        dano = max(1, atacante_data["atk"] - alvo_data["defesa"])
+        alvo_data["hp"] -= dano
 
-        # Lógica do Ataque
-        atk_atacante = get_dynamic_stat(atacante_id, "atk")
-        def_defensor = get_dynamic_stat(alvo_id, "defesa")
+        resultado_str = f"{interaction.user.mention} atacou {alvo.mention} e causou **{dano}** de dano!"
 
-        if tipo_ataque.value == "basico":
-            nome_ataque = "Ataque Básico"
-            dano_bruto = random.randint(atk_atacante // 2, int(atk_atacante * 1.2))
-            dano_final = max(1, dano_bruto - def_defensor)
-        else:  # especial
-            estilo = atacante.get("estilo_luta")
-            especial_info = ATAQUES_ESPECIAIS.get(estilo)
-            if not especial_info:
-                return await interaction.response.send_message(
-                    "❌ Seu estilo não tem ataque especial.", ephemeral=True
-                )
+        # Lógica de derrota e bounty
+        if alvo_data["hp"] <= 0:
+            alvo_data["hp"] = 0
+            resultado_str += f"\n\n**{alvo.mention} foi derrotado!** 💀"
 
-            nome_ataque = especial_info["nome"]
-            dano_bruto = int(atk_atacante * especial_info["multiplicador"])
-            dano_final = max(
-                1, dano_bruto - int(def_defensor * 0.8)
-            )  # Ignora parte da defesa
-
-        defensor["hp"] -= dano_final
-
-        resultado = f"{interaction.user.mention} usou **{nome_ataque}** em {alvo.mention}, causando **{dano_final}** de dano!"
-        if defensor["hp"] <= 0:
-            defensor["hp"] = 0
-            resultado += f"\n\n**{alvo.mention} foi derrotado!** 💀"
-
-            # Sistema de Bounty
-            bounty_defensor = defensor.get("bounty", 0)
-            if bounty_defensor > 0:
-                atacante["dinheiro"] += bounty_defensor
-                defensor["bounty"] = 0
-                resultado += f"\n\n{interaction.user.mention} coletou a recompensa de **{MOEDA_EMOJI} {bounty_defensor}** por derrotar {alvo.mention}!"
+            bounty_alvo = alvo_data.get("bounty", 0)
+            if bounty_alvo > 0:
+                atacante_data["dinheiro"] += bounty_alvo
+                alvo_data["bounty"] = 0
+                resultado_str += f"\n{interaction.user.mention} coletou a recompensa de **{MOEDA_EMOJI} {bounty_alvo}**!"
             else:
                 nova_bounty = BOUNTY_BASE + int(
-                    atacante["dinheiro"] * BOUNTY_PERCENTUAL_VITIMA
+                    atacante_data.get("dinheiro", 0) * BOUNTY_PERCENTUAL_VITIMA
                 )
-                atacante["bounty"] = atacante.get("bounty", 0) + nova_bounty
-                resultado += f"\n\n{interaction.user.mention} agora tem uma recompensa de **{MOEDA_EMOJI} {atacante['bounty']}** por sua cabeça!"
+                atacante_data["bounty"] = atacante_data.get("bounty", 0) + nova_bounty
+                resultado_str += f"\nCom este ato, {interaction.user.mention} agora tem uma recompensa de **{MOEDA_EMOJI} {atacante_data['bounty']}** por sua cabeça!"
 
         embed = discord.Embed(
-            title="⚔️ Combate PvP ⚔️", description=resultado, color=COR_EMBED
+            title="⚔️ Combate PvP ⚔️", description=resultado_str, color=COR_EMBED_PADRAO
         )
         gif_url = random.choice(
-            gifs_db.get(atacante["estilo_luta"], {}).get(tipo_ataque.value, [None])
+            self.bot.gifs_db.get(
+                atacante_data.get("estilo_luta", "Lutador (Mãos)"), {}
+            ).get("basico", [None])
         )
         if gif_url:
             embed.set_image(url=gif_url)
 
         await interaction.response.send_message(embed=embed)
-        salvar_fichas()
+        self.bot.save_fichas()
 
 
 async def setup(bot):

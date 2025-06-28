@@ -1,14 +1,14 @@
-# cogs/actions.py
+# cogs/activities.py
 import discord
-from discord import app_commands
 from discord.ext import commands
+from discord import app_commands
 import time
 
 from utils.game_logic import get_player_data, check_cooldown, set_cooldown
-from config import COOLDOWN_AFK, COR_EMBED_PADRAO, COR_EMBED_ERRO
+from config import COOLDOWN_AFK, COR_EMBED_PADRAO
 
 
-class Actions(commands.Cog):
+class Activities(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
 
@@ -24,10 +24,18 @@ class Actions(commands.Cog):
                 "❌ Você precisa ter uma ficha para usar este comando.", ephemeral=True
             )
 
+        # Verifica se o jogador já está em AFK
+        if player_data.get("afk_until", 0) > time.time():
+            return await interaction.response.send_message(
+                "🌙 Você já está em modo AFK.", ephemeral=True
+            )
+
         cooldown = check_cooldown(player_data, "afk")
         if cooldown > 0:
+            hours, rem = divmod(cooldown, 3600)
+            minutes, _ = divmod(rem, 60)
             return await interaction.response.send_message(
-                f"⏳ Você já está em cooldown de AFK. Tente novamente em `{int(cooldown/60)}` minutos.",
+                f"⏳ O comando AFK está em cooldown. Tente novamente em `{int(hours)}h {int(minutes)}m`.",
                 ephemeral=True,
             )
 
@@ -45,4 +53,4 @@ class Actions(commands.Cog):
 
 
 async def setup(bot):
-    await bot.add_cog(Actions(bot))
+    await bot.add_cog(Activities(bot))

@@ -1,94 +1,60 @@
-# /cogs/powers.py
-
+# cogs/powers.py
 import discord
 from discord import app_commands
 from discord.ext import commands
-from datetime import datetime, timedelta
 
-from utils.game_logic import fichas_db, salvar_fichas
-from config import COR_EMBED, MSG_SEM_FICHA
-
-# Poderes podem ser definidos aqui ou no config.py para maior organização
-PODERES = {
-    "furia": {
-        "nome": "Fúria Berserker",
-        "descricao": "Aumenta seu ATK em 50%, mas reduz sua DEF em 30% por 1 minuto.",
-        "duracao": 60,  # segundos
-        "cooldown": 300,  # 5 minutos
-        "efeitos": {"atk_mult": 1.5, "def_mult": 0.7},
-    }
-}
+# Corrigido: Importando as funções necessárias de 'utils.game_logic'
+from utils.game_logic import get_player_data
+from config import COR_EMBED_PADRAO
 
 
 class Powers(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: commands.Bot):
+        # Corrigido: O bot é armazenado para acesso posterior
         self.bot = bot
 
-    @app_commands.command(name="poder", description="Ativa um poder especial.")
-    @app_commands.choices(
-        nome_poder=[
-            app_commands.Choice(name=info["nome"], value=poder_id)
-            for poder_id, info in PODERES.items()
-        ]
+    @app_commands.command(
+        name="poderes", description="Mostra os poderes e habilidades do seu personagem."
     )
-    async def poder(
-        self, interaction: discord.Interaction, nome_poder: app_commands.Choice[str]
-    ):
-        user_id = str(interaction.user.id)
-        if user_id not in fichas_db:
-            return await interaction.response.send_message(
-                MSG_SEM_FICHA, ephemeral=True
-            )
+    async def poderes(self, interaction: discord.Interaction):
+        # Corrigido: Usa a função get_player_data com self.bot para obter os dados
+        player_data = get_player_data(self.bot, str(interaction.user.id))
 
-        jogador = fichas_db[user_id]
-        poder_id = nome_poder.value
-        poder_info = PODERES[poder_id]
-        agora = datetime.now()
-
-        # Verifica se já existe um poder ativo
-        if (
-            "poder_ativo" in jogador
-            and datetime.fromisoformat(jogador["poder_ativo"]["fim"]) > agora
-        ):
-            poder_ativo_nome = PODERES[jogador["poder_ativo"]["id"]]["nome"]
+        if not player_data:
             return await interaction.response.send_message(
-                f"❌ Você já está sob o efeito de **{poder_ativo_nome}**!",
+                "❌ Você precisa ter uma ficha para ver seus poderes. Use `/criar_ficha`.",
                 ephemeral=True,
             )
 
-        # Verifica cooldown do poder
-        cooldowns = jogador.setdefault("cooldowns", {})
-        cooldown_key = f"poder_{poder_id}"
-        if cooldown_key in cooldowns:
-            tempo_limite = datetime.fromisoformat(cooldowns[cooldown_key])
-            if agora < tempo_limite:
-                tempo_restante = tempo_limite - agora
-                minutos, segundos = divmod(tempo_restante.seconds, 60)
-                return await interaction.response.send_message(
-                    f"⏳ O poder **{poder_info['nome']}** está em cooldown por mais **{minutos}m {segundos}s**.",
-                    ephemeral=True,
-                )
-
-        # Ativa o poder
-        tempo_fim = agora + timedelta(seconds=poder_info["duracao"])
-        jogador["poder_ativo"] = {"id": poder_id, "fim": tempo_fim.isoformat()}
-
-        # Define o cooldown
-        cooldown_fim = agora + timedelta(seconds=poder_info["cooldown"])
-        cooldowns[cooldown_key] = cooldown_fim.isoformat()
-
-        salvar_fichas()
+        # A lógica para exibir os poderes continua a mesma
+        estilo = player_data.get("estilo_luta", "Nenhum")
+        level = player_data.get("level", 1)
 
         embed = discord.Embed(
-            title=f"🔥 Poder Ativado: {poder_info['nome']}!",
-            description=poder_info["descricao"],
-            color=discord.Color.purple(),
+            title=f"Poderes de {player_data['nome']}",
+            description=f"**Estilo de Luta:** {estilo}\n**Nível:** {level}",
+            color=COR_EMBED_PADRAO,
         )
-        await interaction.response.send_message(embed=embed)
 
-        # ATENÇÃO: Para que os efeitos funcionem, a função get_dynamic_stat em utils/game_logic.py
-        # precisaria ser atualizada para reconhecer os multiplicadores de "poder_ativo".
-        # Esta é uma implementação básica da ativação e cooldown.
+        # Aqui você pode adicionar lógica para mostrar habilidades que mudam com o nível
+        embed.add_field(
+            name="Ataque Básico", value="Um ataque simples e direto.", inline=False
+        )
+
+        if level >= 5:
+            embed.add_field(
+                name="Ataque Especial (Desbloqueado)",
+                value="Um ataque mais poderoso específico do seu estilo.",
+                inline=False,
+            )
+        else:
+            embed.add_field(
+                name="Ataque Especial (Bloqueado)",
+                value="Desbloqueia no nível 5.",
+                inline=False,
+            )
+
+        await interaction.response.send_message(embed=embed)
 
 
 async def setup(bot):

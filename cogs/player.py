@@ -1,12 +1,11 @@
-# cogs/player.py
 import discord
 from discord import app_commands
 from discord.ext import commands
 import time
 
-from utils.game_logic import get_player_data, get_hp_max, set_cooldown, check_cooldown
+from utils.game_logic import get_player_data, get_hp_max, verificar_level_up
 from utils.ui_elements import FichaView
-from config import *
+from config import COR_EMBED_SUCESSO, COR_EMBED_ERRO, CUSTO_REVIVER, HABILIDADES
 
 
 class Player(commands.Cog):
@@ -16,14 +15,21 @@ class Player(commands.Cog):
     @app_commands.command(
         name="criar_ficha", description="Cria sua ficha de personagem no RPG."
     )
+    @app_commands.describe(
+        nome="O nome do seu personagem.",
+        estilo_luta="Escolha seu estilo de combate inicial.",
+    )
     @app_commands.choices(
         estilo_luta=[
-            app_commands.Choice(name=f"{info['emoji']} {estilo}", value=estilo)
-            for estilo, info in HABILIDADES.items()
+            app_commands.Choice(name=estilo, value=estilo)
+            for estilo in HABILIDADES.keys()
         ]
     )
     async def criar_ficha(
-        self, interaction: discord.Interaction, estilo_luta: app_commands.Choice[str]
+        self,
+        interaction: discord.Interaction,
+        nome: str,
+        estilo_luta: app_commands.Choice[str],
     ):
         user_id = str(interaction.user.id)
         if get_player_data(self.bot, user_id):
@@ -31,82 +37,85 @@ class Player(commands.Cog):
                 "❌ Você já possui uma ficha!", ephemeral=True
             )
 
-        stats = HABILIDADES[estilo_luta.value]["stats_base"]
-        self.bot.fichas[user_id] = {
-            "nome": interaction.user.display_name,
+        base_stats = HABILIDADES[estilo_luta.value]["stats_base"]
+
+        nova_ficha = {
+            "nome": nome,
             "level": 1,
             "xp": 0,
+            "hp": base_stats["hp"],
+            "atk": base_stats["atk"],
+            "defesa": base_stats["defesa"],
             "dinheiro": 100,
             "estilo_luta": estilo_luta.value,
-            "hp": stats["hp"],
             "inventario": {},
             "cooldowns": {},
             "bounty": 0,
+            "afk_until": 0,
+            "created_at": time.time(),
         }
+
+        self.bot.fichas_db[user_id] = nova_ficha
         self.bot.save_fichas()
 
         embed = discord.Embed(
-            title=f"📝 Ficha Criada!",
-            description=f"Bem-vindo ao mundo de Outlaw, **{interaction.user.mention}**!\nVocê escolheu o caminho do **{estilo_luta.name}**.",
+            title=f"✅ Ficha de {nome} Criada!",
+            description=f"Bem-vindo ao mundo de Outlaw, {interaction.user.mention}!\nSeu caminho como **{estilo_luta.value}** começa agora.",
             color=COR_EMBED_SUCESSO,
-        ).set_thumbnail(url=interaction.user.display_avatar.url)
+        )
         await interaction.response.send_message(embed=embed)
 
     @app_commands.command(
-        name="ficha", description="Mostra sua ficha de personagem ou de outro jogador."
+        name="ficha", description="Mostra sua ficha ou a de outro jogador."
     )
     async def ficha(
-        self, interaction: discord.Interaction, membro: discord.Member = None
+        self, interaction: discord.Interaction, jogador: discord.Member = None
     ):
-        target_user = membro or interaction.user
-        if not get_player_data(self.bot, target_user.id):
-            msg = (
-                "Você não tem uma ficha. Use `/criar_ficha`."
-                if not membro
-                else f"{target_user.display_name} não tem uma ficha."
-            )
-            return await interaction.response.send_message(f"❌ {msg}", ephemeral=True)
+        target_user = jogador or interaction.user
+        player_data = get_player_data(self.bot, str(target_user.id))
 
-        view = FichaView(self.bot, interaction.user, target_user)
-        await interaction.response.send_message(
-            embed=view.create_attributes_embed(), view=view
-        )
+        if not player_data:
+            msg = (
+                "❌ Você não tem uma ficha. Use `/criar_ficha`."
+                if not jogador
+                else f"❌ {target_user.display_name} não possui uma ficha."
+            )
+            return await interaction.response.send_message(msg, ephemeral=True)
+
+        view = FichaView(bot=self.bot, author=interaction.user, target_user=target_user)
+        embed = view.create_attributes_embed()
+        await interaction.response.send_message(embed=embed, view=view)
 
     @app_commands.command(
-        name="reviver", description="Pague para voltar à vida após ser derrotado."
+        name="reviver", description="Reviva seu personagem pagando uma taxa."
     )
     async def reviver(self, interaction: discord.Interaction):
         user_id = str(interaction.user.id)
         player_data = get_player_data(self.bot, user_id)
+
         if not player_data:
             return await interaction.response.send_message(
                 "❌ Você não tem uma ficha.", ephemeral=True
             )
+
         if player_data["hp"] > 0:
             return await interaction.response.send_message(
-                "❌ Você já está vivo!", ephemeral=True
-            )
-
-        cooldown = check_cooldown(player_data, "reviver")
-        if cooldown > 0:
-            return await interaction.response.send_message(
-                f"⏳ Aguarde mais `{int(cooldown)}s`.", ephemeral=True
+                "❌ Você não está derrotado.", ephemeral=True
             )
 
         if player_data["dinheiro"] < CUSTO_REVIVER:
             return await interaction.response.send_message(
-                f"❌ Você precisa de {MOEDA_EMOJI} `{CUSTO_REVIVER}` para reviver.",
+                f"❌ Você não tem dinheiro suficiente para reviver. Custo: {CUSTO_REVIVER}",
                 ephemeral=True,
             )
 
         player_data["dinheiro"] -= CUSTO_REVIVER
-        player_data["hp"] = get_hp_max(player_data) // 4
-        set_cooldown(player_data, "reviver", COOLDOWN_REVIVER)
+        player_data["hp"] = get_hp_max(player_data)
         self.bot.save_fichas()
 
         embed = discord.Embed(
-            title="✨ De Volta à Vida!",
-            description=f"Você pagou {MOEDA_EMOJI} `{CUSTO_REVIVER}` e retornou ao mundo dos vivos.",
+            title="❤️ Personagem Revivido!",
+            description=f"Você pagou {CUSTO_REVIVER} e agora está de volta à ação com a vida cheia!",
             color=COR_EMBED_SUCESSO,
         )
         await interaction.response.send_message(embed=embed)

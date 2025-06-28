@@ -48,10 +48,22 @@ def get_stat(player_data, stat: str):
 
 def check_cooldown(player_data, command):
     now = int(time.time())
-    if command in player_data.get("cooldowns", {}):
-        cooldown_end = player_data["cooldowns"][command]
-        if now < cooldown_end:
-            return cooldown_end - now
+    cooldown_end = player_data.get("cooldowns", {}).get(command)
+
+    if not cooldown_end:
+        return 0
+
+    # Adicionado para compatibilidade com o formato de data antigo (string)
+    if isinstance(cooldown_end, str):
+        try:
+            # Converte a string ISO para um objeto datetime, depois para timestamp
+            cooldown_end = int(datetime.fromisoformat(cooldown_end).timestamp())
+        except ValueError:
+            # Se a conversão falhar, considera o cooldown como expirado
+            return 0
+
+    if now < cooldown_end:
+        return cooldown_end - now
     return 0
 
 
