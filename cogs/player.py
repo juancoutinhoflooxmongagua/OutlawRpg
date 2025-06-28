@@ -5,7 +5,18 @@ import time
 
 from utils.game_logic import get_player_data, get_hp_max, verificar_level_up
 from utils.ui_elements import FichaView
-from config import COR_EMBED_SUCESSO, COR_EMBED_ERRO, CUSTO_REVIVER, HABILIDADES
+from config import (
+    COR_EMBED_SUCESSO,
+    COR_EMBED_ERRO,
+    CUSTO_REVIVER,
+    HABILIDADES,
+    APRIMORAMENTO_CUSTO_BASE_ATK,
+    APRIMORAMENTO_CUSTO_MULTIPLICADOR_ATK,
+    APRIMORAMENTO_CUSTO_BASE_DEF,
+    APRIMORAMENTO_CUSTO_MULTIPLICADOR_DEF,
+    APRIMORAMENTO_MAX_LEVEL,
+    MOEDA_EMOJI,
+)
 
 
 class Player(commands.Cog):
@@ -53,6 +64,7 @@ class Player(commands.Cog):
             "bounty": 0,
             "afk_until": 0,
             "created_at": time.time(),
+            "aprimoramentos": {"atk": 0, "defesa": 0},  # Novo
         }
 
         self.bot.fichas_db[user_id] = nova_ficha
@@ -116,6 +128,66 @@ class Player(commands.Cog):
         embed = discord.Embed(
             title="❤️ Personagem Revivido!",
             description=f"Você pagou {CUSTO_REVIVER} e agora está de volta à ação com a vida cheia!",
+            color=COR_EMBED_SUCESSO,
+        )
+        await interaction.response.send_message(embed=embed)
+
+    @app_commands.command(
+        name="aprimorar", description="Aprimora seus atributos gastando dinheiro."
+    )
+    @app_commands.describe(atributo="O atributo que você deseja aprimorar.")
+    @app_commands.choices(
+        atributo=[
+            app_commands.Choice(name="Ataque", value="atk"),
+            app_commands.Choice(name="Defesa", value="defesa"),
+        ]
+    )
+    async def aprimorar(
+        self, interaction: discord.Interaction, atributo: app_commands.Choice[str]
+    ):
+        user_id = str(interaction.user.id)
+        player_data = get_player_data(self.bot, user_id)
+
+        if not player_data:
+            return await interaction.response.send_message(
+                "❌ Você precisa ter uma ficha para aprimorar.", ephemeral=True
+            )
+
+        aprimoramentos = player_data.setdefault(
+            "aprimoramentos", {"atk": 0, "defesa": 0}
+        )
+        nivel_atual = aprimoramentos.get(atributo.value, 0)
+
+        if nivel_atual >= APRIMORAMENTO_MAX_LEVEL:
+            return await interaction.response.send_message(
+                f"❌ Você já atingiu o nível máximo de aprimoramento para {atributo.name}.",
+                ephemeral=True,
+            )
+
+        if atributo.value == "atk":
+            custo = int(
+                APRIMORAMENTO_CUSTO_BASE_ATK
+                * (APRIMORAMENTO_CUSTO_MULTIPLICADOR_ATK**nivel_atual)
+            )
+        else:  # def
+            custo = int(
+                APRIMORAMENTO_CUSTO_BASE_DEF
+                * (APRIMORAMENTO_CUSTO_MULTIPLICADOR_DEF**nivel_atual)
+            )
+
+        if player_data["dinheiro"] < custo:
+            return await interaction.response.send_message(
+                f"❌ Você não tem dinheiro suficiente. Custo para aprimorar {atributo.name}: {MOEDA_EMOJI} {custo}",
+                ephemeral=True,
+            )
+
+        player_data["dinheiro"] -= custo
+        aprimoramentos[atributo.value] += 1
+        self.bot.save_fichas()
+
+        embed = discord.Embed(
+            title="✨ Atributo Aprimorado!",
+            description=f"Você aprimorou **{atributo.name}** para o nível **{nivel_atual + 1}** por {MOEDA_EMOJI} {custo}!",
             color=COR_EMBED_SUCESSO,
         )
         await interaction.response.send_message(embed=embed)

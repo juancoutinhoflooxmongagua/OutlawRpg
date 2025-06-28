@@ -1,21 +1,36 @@
 {
     "1388233191244042310": {
         "nome": "JuanXK",
-        "level": 1,
-        "xp": 250,
-        "hp": 90,
+        "level": 7,
+        "xp": 270,
+        "hp": 12,
         "atk": 15,
         "defesa": 6,
-        "dinheiro": 56100,
+        "dinheiro": 51140,
         "estilo_luta": "Atirador (Armas de Fogo)",
-        "inventario": {
-            "invocador_colosso": 1
-        },
+        "inventario": {},
         "cooldowns": {
-            "daily": 1751159292
+            "daily": 1751159292,
+            "cacar": 1751073469,
+            "afk": 1751084496
         },
         "bounty": 0,
-        "afk_until": 0,
+        "afk_until": 1751084496,
         "created_at": 1751072886.1347885
+    },
+    "854382404809261076": {
+        "nome": "\u09e1\u09e3\u035c\u0361astollfo\ua9bf\ua670\u0f73\u2027",
+        "level": 1,
+        "xp": 0,
+        "hp": 89,
+        "atk": 12,
+        "defesa": 8,
+        "dinheiro": 100,
+        "estilo_luta": "Lutador (M\u00e3os)",
+        "inventario": {},
+        "cooldowns": {},
+        "bounty": 0,
+        "afk_until": 0,
+        "created_at": 1751073473.2601287
     }
 }
