@@ -18,7 +18,7 @@ STATUS_BOT = discord.Game(name="outlaw-rpg.com | /ficha")
 COR_EMBED_PADRAO = 0x2B2D31
 COR_EMBED_SUCESSO = 0x57F287
 COR_EMBED_ERRO = 0xED4245
-COR_EMBED_AVISO = 0x0FEE75C  # <-- SINTAXE CORRIGIDA (adicionado "0x")
+COR_EMBED_AVISO = 0x0FEE75C
 COR_EMBED_CHEFE = 0x992D22
 
 # --- ARQUIVOS DE DADOS ---
@@ -27,8 +27,8 @@ GIFS_DB_FILE = "data/gifs.json"
 BOSS_DB_FILE = "data/boss_data.json"
 
 # --- CONSTANTES DE JOGO ---
-ENERGIA_MAXIMA = 100  # Adicionando a constante que faltava
-REGEN_ENERGIA = 5  # Adicionando a constante que faltava
+ENERGIA_MAXIMA = 100
+REGEN_ENERGIA = 5
 MOEDA_NOME = "Dólar"
 MOEDA_EMOJI = "💵"
 

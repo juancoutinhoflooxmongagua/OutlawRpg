@@ -22,6 +22,9 @@ from config import (
     CAVALEIROS,
     COOLDOWN_CACAR,
     COOLDOWN_BATALHAR,
+    BOUNTY_BASE,
+    BOUNTY_PERCENTUAL_VITIMA,
+    MOEDA_EMOJI,
 )
 
 
@@ -250,6 +253,19 @@ class Combat(commands.Cog):
         if defensor["hp"] <= 0:
             defensor["hp"] = 0
             resultado += f"\n\n**{alvo.mention} foi derrotado!** 💀"
+
+            # Sistema de Bounty
+            bounty_defensor = defensor.get("bounty", 0)
+            if bounty_defensor > 0:
+                atacante["dinheiro"] += bounty_defensor
+                defensor["bounty"] = 0
+                resultado += f"\n\n{interaction.user.mention} coletou a recompensa de **{MOEDA_EMOJI} {bounty_defensor}** por derrotar {alvo.mention}!"
+            else:
+                nova_bounty = BOUNTY_BASE + int(
+                    atacante["dinheiro"] * BOUNTY_PERCENTUAL_VITIMA
+                )
+                atacante["bounty"] = atacante.get("bounty", 0) + nova_bounty
+                resultado += f"\n\n{interaction.user.mention} agora tem uma recompensa de **{MOEDA_EMOJI} {atacante['bounty']}** por sua cabeça!"
 
         embed = discord.Embed(
             title="⚔️ Combate PvP ⚔️", description=resultado, color=COR_EMBED
