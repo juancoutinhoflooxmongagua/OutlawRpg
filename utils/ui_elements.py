@@ -9,7 +9,7 @@ from .game_logic import (
     xp_para_level_up,
 )
 from config import (
-    LOJA_ITENS,
+    ITENS_LOJA,  # CORRIGIDO
     COR_EMBED_PADRAO,
     MOEDA_EMOJI,
     COR_EMBED_ERRO,
@@ -46,7 +46,6 @@ class FichaView(discord.ui.View):
         hp_max = get_hp_max(player_data)
         xp_necessario = xp_para_level_up(player_data["level"])
 
-        # Define o status e a cor do embed baseada no status
         status_str = "☀️ Ativo"
         status_color = COR_EMBED_SUCESSO
         if player_data["hp"] <= 0:
@@ -59,7 +58,7 @@ class FichaView(discord.ui.View):
         bounty_info = player_data.get("bounty", 0)
         if bounty_info > 0:
             status_str = f"**🔥 FORAGIDO** ({MOEDA_EMOJI} {bounty_info})"
-            status_color = 0xFF4500  # Laranja/Vermelho para foragido
+            status_color = 0xFF4500
 
         embed.color = status_color
 
@@ -85,7 +84,6 @@ class FichaView(discord.ui.View):
         )
         embed.add_field(name="📊 Atributos Principais", value=stats_text, inline=True)
 
-        # Adiciona uma imagem baseada no estilo de luta (substitua as URLs!)
         estilo_imagem = {
             "Lutador (Mãos)": "https://i.imgur.com/Kz3yL3g.gif",
             "Espadachim (Espadas)": "https://i.imgur.com/Taf2So5.gif",
@@ -110,7 +108,7 @@ class FichaView(discord.ui.View):
                 item_info = next(
                     (
                         item
-                        for cat in LOJA_ITENS.values()
+                        for cat in ITENS_LOJA.values()  # CORRIGIDO
                         for id, item in cat.items()
                         if id == item_id
                     ),

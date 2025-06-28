@@ -23,7 +23,6 @@ def salvar_dados(dados, arquivo):
 
 def get_player_data(bot, user_id):
     user_id = str(user_id)
-    # CORRIGIDO: Acessa bot.fichas_db em vez de bot.fichas
     if user_id not in bot.fichas_db:
         return None
     return bot.fichas_db[user_id]
@@ -39,12 +38,24 @@ def get_hp_max(player_data):
 
 
 def get_stat(player_data, stat: str):
+    """
+    Calcula o valor total de um atributo (stat), somando o valor base,
+    o bónus de nível e os pontos de aprimoramento.
+    """
     if not player_data:
         return 0
+
+    # Valor base do estilo de luta
     estilo = player_data.get("estilo_luta")
     base_val = HABILIDADES.get(estilo, {}).get("stats_base", {}).get(stat, 0)
-    level_bonus = player_data.get("level", 1) // 2
-    return base_val + level_bonus
+
+    # Bónus adquirido por nível
+    level_bonus = (player_data.get("level", 1) - 1) // 2
+
+    # Bónus adquirido por aprimoramentos
+    aprimoramento_bonus = player_data.get("aprimoramentos", {}).get(stat, 0)
+
+    return base_val + level_bonus + aprimoramento_bonus
 
 
 def check_cooldown(player_data, command):
@@ -54,13 +65,10 @@ def check_cooldown(player_data, command):
     if not cooldown_end:
         return 0
 
-    # Adicionado para compatibilidade com o formato de data antigo (string)
     if isinstance(cooldown_end, str):
         try:
-            # Converte a string ISO para um objeto datetime, depois para timestamp
             cooldown_end = int(datetime.fromisoformat(cooldown_end).timestamp())
         except ValueError:
-            # Se a conversão falhar, considera o cooldown como expirado
             return 0
 
     if now < cooldown_end:
@@ -90,6 +98,8 @@ def verificar_level_up(player_data):
     if player_data["xp"] >= xp_necessario:
         player_data["level"] += 1
         player_data["xp"] -= xp_necessario
+        # Bónus de HP ao subir de nível
+        player_data["hp"] = get_hp_max(player_data)
         return player_data["level"]
     return None
 

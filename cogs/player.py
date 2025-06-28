@@ -3,11 +3,10 @@ from discord import app_commands
 from discord.ext import commands
 import time
 
-# Funções e constantes importadas (assumindo que existam nos seus outros arquivos)
 from utils.game_logic import (
     get_player_data,
     get_hp_max,
-    get_stat,  # Função chave para calcular o total
+    get_stat,
     criar_barra,
     xp_para_level_up,
 )
@@ -17,11 +16,6 @@ from config import (
     COR_EMBED_ERRO,
     CUSTO_REVIVER,
     HABILIDADES,
-    APRIMORAMENTO_CUSTO_BASE_ATK,
-    APRIMORAMENTO_CUSTO_MULTIPLICADOR_ATK,
-    APRIMORAMENTO_CUSTO_BASE_DEF,
-    APRIMORAMENTO_CUSTO_MULTIPLICADOR_DEF,
-    APRIMORAMENTO_MAX_LEVEL,
     MOEDA_EMOJI,
 )
 
@@ -62,8 +56,6 @@ class Player(commands.Cog):
             "level": 1,
             "xp": 0,
             "hp": base_stats["hp"],
-            "atk": base_stats["atk"],
-            "defesa": base_stats["defesa"],
             "dinheiro": 100,
             "estilo_luta": estilo_luta.value,
             "inventario": {},
@@ -101,15 +93,12 @@ class Player(commands.Cog):
             )
             return await interaction.response.send_message(msg, ephemeral=True)
 
-        # --- LÓGICA DE EXIBIÇÃO DA FICHA CORRIGIDA ---
         hp_max = get_hp_max(player_data)
         xp_necessario = xp_para_level_up(player_data["level"])
 
-        # Usa get_stat para calcular os valores totais
         ataque_total = get_stat(player_data, "atk")
         defesa_total = get_stat(player_data, "defesa")
 
-        # Detalhes para o breakdown dos stats
         base_atk = (
             HABILIDADES.get(player_data["estilo_luta"], {})
             .get("stats_base", {})
@@ -196,73 +185,6 @@ class Player(commands.Cog):
         embed = discord.Embed(
             title="❤️ Personagem Revivido!",
             description=f"Você pagou {MOEDA_EMOJI} {CUSTO_REVIVER} e voltou à ação com a vida cheia!",
-            color=COR_EMBED_SUCESSO,
-        )
-        await interaction.response.send_message(embed=embed)
-
-    @app_commands.command(
-        name="aprimorar", description="Aprimora seus atributos gastando dinheiro."
-    )
-    @app_commands.describe(atributo="O atributo que você deseja aprimorar.")
-    @app_commands.choices(
-        atributo=[
-            app_commands.Choice(name="Ataque", value="atk"),
-            app_commands.Choice(name="Defesa", value="defesa"),
-        ]
-    )
-    async def aprimorar(
-        self, interaction: discord.Interaction, atributo: app_commands.Choice[str]
-    ):
-        user_id = str(interaction.user.id)
-        player_data = get_player_data(self.bot, user_id)
-        stat_key = atributo.value
-
-        if not player_data:
-            return await interaction.response.send_message(
-                "❌ Você precisa ter uma ficha para aprimorar.", ephemeral=True
-            )
-
-        aprimoramentos = player_data.setdefault(
-            "aprimoramentos", {"atk": 0, "defesa": 0}
-        )
-        nivel_atual = aprimoramentos.get(stat_key, 0)
-
-        if nivel_atual >= APRIMORAMENTO_MAX_LEVEL:
-            return await interaction.response.send_message(
-                f"❌ Você já atingiu o nível máximo de aprimoramento para {atributo.name}.",
-                ephemeral=True,
-            )
-
-        if stat_key == "atk":
-            custo = int(
-                APRIMORAMENTO_CUSTO_BASE_ATK
-                * (APRIMORAMENTO_CUSTO_MULTIPLICADOR_ATK**nivel_atual)
-            )
-        else:
-            custo = int(
-                APRIMORAMENTO_CUSTO_BASE_DEF
-                * (APRIMORAMENTO_CUSTO_MULTIPLICADOR_DEF**nivel_atual)
-            )
-
-        if player_data["dinheiro"] < custo:
-            return await interaction.response.send_message(
-                f"❌ Você não tem dinheiro suficiente. Custo: {MOEDA_EMOJI} {custo}",
-                ephemeral=True,
-            )
-
-        # --- LÓGICA DE APRIMORAMENTO CORRIGIDA ---
-        player_data["dinheiro"] -= custo
-        aprimoramentos[stat_key] += 1  # Registra o nível do aprimoramento
-        player_data[stat_key] += 1  # Adiciona +1 diretamente ao atributo base
-
-        self.bot.save_fichas()
-
-        # Pega o valor total atualizado para mostrar na mensagem
-        stat_total_atualizado = get_stat(player_data, stat_key)
-
-        embed = discord.Embed(
-            title="✨ Atributo Aprimorado!",
-            description=f"Você aprimorou **{atributo.name}**! Seu valor total agora é **{stat_total_atualizado}**.\n(Nível de Aprimoramento: {nivel_atual + 1})\nCusto: {MOEDA_EMOJI} {custo}",
             color=COR_EMBED_SUCESSO,
         )
         await interaction.response.send_message(embed=embed)
