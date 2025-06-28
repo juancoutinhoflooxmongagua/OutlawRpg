@@ -1,0 +1,113 @@
+{
+    "1388233191244042310": {
+        "nome": "\u23e4\u035f\u035e\u035f\uaab6\u0362Red X\uaac2",
+        "level": 1,
+        "xp": 44,
+        "dinheiro": 4024,
+        "hp": 105,
+        "atk": 10,
+        "defesa": 5,
+        "speed": 10,
+        "regen": 5,
+        "resistencia": 5,
+        "energia": 31,
+        "energia_max": 10,
+        "morto": true,
+        "afk": false,
+        "inventario": {
+            "pocao_vida": 10,
+            "invocador_colosso": 1
+        },
+        "habilidade": "algoz",
+        "estilo_luta": "Lutador (M\u00e3os)",
+        "kills": 0,
+        "aura": 0,
+        "transformado": false,
+        "em_furia": false,
+        "habilidade_ativa": false,
+        "cooldowns": {
+            "cacar": "2025-06-27T20:14:44.622309",
+            "batalhar": "2025-06-27T20:14:19.745362",
+            "crime": "2025-06-27T20:36:05.766421",
+            "poder_furia": "2025-06-27T20:23:05.331166",
+            "trabalhar": "2025-06-27T21:18:15.989661"
+        },
+        "badges": {
+            "primeiros_passos": "2025-06-27T19:36:27.634801"
+        },
+        "xp_para_proximo_nivel": 10,
+        "afk_cooldown_fim": "2025-06-27T23:07:49.714518",
+        "poder_ativo": {
+            "id": "furia",
+            "fim": "2025-06-27T20:19:05.331166"
+        }
+    },
+    "854382404809261076": {
+        "nome": "! \u09e1\u09e3\u035c\u0361Astollfo\u2661\u0f73\u2027\u207a",
+        "level": 1,
+        "xp": 0,
+        "dinheiro": 100,
+        "hp": 0,
+        "atk": 10,
+        "defesa": 5,
+        "speed": 10,
+        "regen": 5,
+        "resistencia": 5,
+        "energia": 21,
+        "energia_max": 10,
+        "morto": true,
+        "afk": false,
+        "inventario": {},
+        "habilidade": "guardiao",
+        "estilo_luta": "Lutador (M\u00e3os)",
+        "kills": 0,
+        "aura": 0,
+        "transformado": false,
+        "em_furia": false,
+        "habilidade_ativa": false,
+        "cooldowns": {},
+        "badges": {
+            "primeiros_passos": "2025-06-27T19:41:17.734055"
+        },
+        "xp_para_proximo_nivel": 10
+    },
+    "945867324085374976": {
+        "nome": "! Adrian_Fds",
+        "level": 2,
+        "xp": 68,
+        "dinheiro": 402,
+        "hp": 68,
+        "atk": 10,
+        "defesa": 5,
+        "speed": 10,
+        "regen": 5,
+        "resistencia": 5,
+        "energia": 21,
+        "energia_max": 10,
+        "morto": true,
+        "afk": false,
+        "inventario": {},
+        "habilidade": "algoz",
+        "estilo_luta": "Espadachim (Espadas)",
+        "kills": 0,
+        "aura": 0,
+        "transformado": false,
+        "em_furia": false,
+        "habilidade_ativa": false,
+        "cooldowns": {
+            "cacar": "2025-06-27T20:46:51.171297",
+            "batalhar": "2025-06-27T20:46:55.864055",
+            "trabalhar": "2025-06-27T21:21:35.375343",
+            "crime": "2025-06-27T20:52:00.049774",
+            "poder_furia": "2025-06-27T20:52:16.874158"
+        },
+        "badges": {
+            "primeiros_passos": "2025-06-27T19:47:47.982375"
+        },
+        "xp_para_proximo_nivel": 10,
+        "poder_ativo": {
+            "id": "furia",
+            "fim": "2025-06-27T20:48:16.874158"
+        }
+    }
+}
