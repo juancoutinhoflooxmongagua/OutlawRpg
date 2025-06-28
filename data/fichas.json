@@ -6,9 +6,11 @@
         "hp": 0,
         "atk": 15,
         "defesa": 6,
-        "dinheiro": 3550,
+        "dinheiro": 9999923729,
         "estilo_luta": "Atirador (Armas de Fogo)",
-        "inventario": {},
+        "inventario": {
+            "invocador_colosso": 99998
+        },
         "cooldowns": {
             "daily": 1751159292,
             "cacar": 1751073469,
@@ -18,7 +20,7 @@
         "afk_until": 1751084496,
         "created_at": 1751072886.1347885,
         "aprimoramentos": {
-            "atk": 9,
+            "atk": 10,
             "defesa": 0
         }
     },

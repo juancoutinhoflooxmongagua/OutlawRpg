@@ -157,7 +157,7 @@ BOSS_INFO = {
     "nome": "Colosso de Obsidiana",
     "hp_total": 10000,
     "atk": 50,
-    "defesa": 30,
+    "defesa": 10,
     "recompensas": {
         "top_1_dmg": {"dinheiro": 10000, "xp": 2000},
         "top_2_dmg": {"dinheiro": 5000, "xp": 1000},
