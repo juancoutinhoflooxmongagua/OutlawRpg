@@ -3,10 +3,10 @@
         "nome": "JuanXK",
         "level": 7,
         "xp": 270,
-        "hp": 12,
+        "hp": 87,
         "atk": 15,
         "defesa": 6,
-        "dinheiro": 45640,
+        "dinheiro": 16364,
         "estilo_luta": "Atirador (Armas de Fogo)",
         "inventario": {},
         "cooldowns": {
@@ -18,7 +18,7 @@
         "afk_until": 1751084496,
         "created_at": 1751072886.1347885,
         "aprimoramentos": {
-            "atk": 1,
+            "atk": 8,
             "defesa": 0
         }
     },
@@ -26,7 +26,7 @@
         "nome": "\u09e1\u09e3\u035c\u0361astollfo\ua9bf\ua670\u0f73\u2027",
         "level": 1,
         "xp": 0,
-        "hp": 89,
+        "hp": 82,
         "atk": 12,
         "defesa": 8,
         "dinheiro": 100,
