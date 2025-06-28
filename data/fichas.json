@@ -6,7 +6,7 @@
         "hp": 12,
         "atk": 15,
         "defesa": 6,
-        "dinheiro": 51140,
+        "dinheiro": 50640,
         "estilo_luta": "Atirador (Armas de Fogo)",
         "inventario": {},
         "cooldowns": {
@@ -16,7 +16,11 @@
         },
         "bounty": 0,
         "afk_until": 1751084496,
-        "created_at": 1751072886.1347885
+        "created_at": 1751072886.1347885,
+        "aprimoramentos": {
+            "atk": 1,
+            "defesa": 0
+        }
     },
     "854382404809261076": {
         "nome": "\u09e1\u09e3\u035c\u0361astollfo\ua9bf\ua670\u0f73\u2027",

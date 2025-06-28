@@ -10,6 +10,7 @@ from config import (
     COR_EMBED_ERRO,
     COR_EMBED_CHEFE,
     BOSS_INFO,
+    COR_EMBED_PADRAO,
 )
 
 
