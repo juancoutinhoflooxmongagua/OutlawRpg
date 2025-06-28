@@ -52,13 +52,12 @@ class LojaDropdown(discord.ui.Select):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        await interaction.response.defer()  # Adia a resposta para processamento
+        await interaction.response.defer()
 
         user_id = str(interaction.user.id)
         item_id = self.values[0]
         player_data = get_player_data(self.bot, user_id)
 
-        # Encontra o item na loja
         item_info = None
         for categoria in LOJA_ITENS.values():
             if item_id in categoria:
@@ -76,7 +75,6 @@ class LojaDropdown(discord.ui.Select):
                 ephemeral=True,
             )
 
-        # Processa a compra
         player_data["dinheiro"] -= item_info["preco"]
         inventario = player_data.setdefault("inventario", {})
         inventario[item_id] = inventario.get(item_id, 0) + 1
@@ -96,13 +94,21 @@ class Economy(commands.Cog):
 
     @app_commands.command(name="daily", description="Receba sua recompensa diária.")
     async def daily(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True)  # Defer para evitar timeout
+        try:
+            # Defer para evitar timeout. O ideal é ser efêmero para não poluir o chat.
+            await interaction.response.defer(ephemeral=True)
+        except discord.errors.NotFound:
+            print(
+                f"Falha ao responder à interação para {interaction.user}. A interação pode ter expirado."
+            )
+            return
+
         user_id = str(interaction.user.id)
         player_data = get_player_data(self.bot, user_id)
 
         if not player_data:
             return await interaction.followup.send(
-                "❌ Você precisa ter uma ficha para usar este comando."
+                "❌ Você precisa ter uma ficha para usar este comando.", ephemeral=True
             )
 
         cooldown = check_cooldown(player_data, "daily")
@@ -110,7 +116,8 @@ class Economy(commands.Cog):
             horas, rem = divmod(cooldown, 3600)
             minutos, segundos = divmod(rem, 60)
             return await interaction.followup.send(
-                f"⏳ Você já coletou sua recompensa. Tente novamente em `{int(horas)}h {int(minutos)}m`."
+                f"⏳ Você já coletou sua recompensa. Tente novamente em `{int(horas)}h {int(minutos)}m`.",
+                ephemeral=True,
             )
 
         player_data["dinheiro"] += RECOMPENSA_DAILY_DINHEIRO
@@ -123,7 +130,8 @@ class Economy(commands.Cog):
             description=f"Você recebeu **{MOEDA_EMOJI} {RECOMPENSA_DAILY_DINHEIRO}** e **{RECOMPENSA_DAILY_XP} XP**!",
             color=COR_EMBED_SUCESSO,
         )
-        await interaction.followup.send(embed=embed)
+        # Usamos followup.send porque a resposta já foi deferida (adiada).
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
     @app_commands.command(name="loja", description="Abre a loja de itens do servidor.")
     async def loja(self, interaction: discord.Interaction):
