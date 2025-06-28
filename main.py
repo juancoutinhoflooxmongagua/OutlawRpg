@@ -25,7 +25,7 @@ INITIAL_MONEY = 100
 INITIAL_HP = 100
 INITIAL_ATTACK = 10
 INITIAL_SPECIAL_ATTACK = 20
-REVIVE_COST = 50
+REVIVE_COST = 55
 BOUNTY_PERCENTAGE = 0.20
 TRANSFORM_COST = 2
 MAX_ENERGY = 10
@@ -93,27 +93,27 @@ ENEMIES = {
     "Ruínas do Templo": [
         {
             "name": "Guardião de Pedra",
-            "hp": 100,
-            "attack": 18,
-            "xp": 60,
-            "money": 40,
+            "hp": 400,
+            "attack": 38,
+            "xp": 260,
+            "money": 200,
             "thumb": "https://c.tenor.com/NLQ2AoVfEQUAAAAd/tenor.gif",
         },
         # NOVOS INIMIGOS PARA RUÍNAS DO TEMPLO:
         {
             "name": "Espectro Antigo",  # Nome do novo inimigo
             "hp": 90,  # Pontos de vida
-            "attack": 22,  # Dano de ataque
-            "xp": 70,  # Experiência concedida
-            "money": 50,  # Dinheiro concedido
-            "thumb": "https://i.imgur.com/q7r3n7g.gif",  # Link para o GIF/imagem do inimigo (exemplo, troque pelo seu!)
+            "attack": 102,  # Dano de ataque
+            "xp": 80,  # Experiência concedida
+            "money": 160,  # Dinheiro concedido
+            "thumb": "https://c.tenor.com/tTXMqhKPCFwAAAAd/tenor.gif",  # Link para o GIF/imagem do inimigo (exemplo, troque pelo seu!)
         },
         {
             "name": "Gárgula Vingativa",
-            "hp": 110,
-            "attack": 20,
+            "hp": 220,
+            "attack": 50,
             "xp": 65,
-            "money": 45,
+            "money": 165,
             "thumb": "https://c.tenor.com/Ub7Nd2q36RYAAAAd/tenor.gif",  # Link para o GIF/imagem do inimigo (exemplo, troque pelo seu!)
         },
     ],
@@ -471,7 +471,7 @@ class ProfileView(ui.View):
         embed.set_thumbnail(
             url=self.user.avatar.url if self.user.avatar else discord.Embed.Empty
         )
-        embed.set_image(url="https://i.imgur.com/Lq6z4yH.png")
+        embed.set_image(url="https://c.tenor.com/twwaRu0KGWoAAAAC/tenor.gif")
         location = player_data.get("location", "Desconhecido")
         location_info = WORLD_MAP.get(location, {})
         status_map = {"online": "🟢 Online", "dead": "💀 Morto", "afk": "🌙 AFK"}
@@ -651,7 +651,7 @@ class ShopView(ui.View):
     def __init__(self):
         super().__init__(timeout=180)
         self.add_item(
-            self.BuyButton(item_id="pocao", price=75, label="Comprar Poção", emoji="🧪")
+            self.BuyButton(item_id="pocao", price=50, label="Comprar Poção", emoji="🧪")
         )
         self.add_item(
             self.BuyButton(
@@ -856,7 +856,7 @@ async def trabalhar(i: Interaction):
         "work_cooldown",
         player_data["cooldowns"].get("work_cooldown", 0),
     )
-    if now - last_work < 3600:
+    if now - last_work < 30:
         await i.response.send_message(f"Você já trabalhou recentemente.")
         return
     job = random.choice(
@@ -960,21 +960,176 @@ async def cacar(i: Interaction):
     description="Enfrenta um Ex-Cavaleiro para testar sua força (combate por turnos).",
 )
 @app_commands.check(check_player_exists)
-@app_commands.checks.cooldown(1, 300, key=lambda i: i.user.id)
-async def batalhar(i: Interaction):
+@app_commands.checks.cooldown(1, 30, key=lambda i: i.user.id)
+@app_commands.describe(
+    primeiro_ataque="Escolha seu ataque inicial: Básico ou Especial."
+)
+@app_commands.choices(
+    primeiro_ataque=[
+        app_commands.Choice(name="Ataque Básico", value="basico"),
+        app_commands.Choice(name="Ataque Especial", value="especial"),
+    ]
+)
+async def batalhar(i: Interaction, primeiro_ataque: app_commands.Choice[str]):
     player_data = get_player_data(i.user.id)
     if player_data["status"] == "dead":
         await i.response.send_message("Mortos não batalham.")
         return
+
+    # Se o jogador escolher ataque especial, verifica a energia
+    if primeiro_ataque.value == "especial":
+        # Usando TRANSFORM_COST como custo de energia para ataque especial
+        if player_data.get("energy", 0) < TRANSFORM_COST:
+            await i.response.send_message(
+                f"Você não tem energia suficiente ({TRANSFORM_COST}) para um Ataque Especial inicial! Use Ataque Básico ou recupere energia."
+            )
+            return
+
     enemy = {
         "name": "Ex-Cavaleiro Renegado",
-        "hp": 100,
-        "attack": 15,
-        "xp": 50,
-        "money": 40,
-        "thumb": "https://i.imgur.com/gJd4dJx.png",
+        "hp": 320,
+        "attack": 95,
+        "xp": 390,
+        "money": 400,
+        "thumb": "https://c.tenor.com/ebFt6wJWEu8AAAAC/tenor.gif",
     }
-    await run_turn_based_combat(i, player_data, enemy)
+    # Passa o estilo de ataque escolhido para a função de combate
+    await run_turn_based_combat(i, player_data, enemy, primeiro_ataque.value)
+
+
+async def run_turn_based_combat(
+    interaction: Interaction,
+    player_data: dict,
+    enemy: dict,
+    initial_attack_style: str = "basico",
+):
+    log = []
+    player_hp = player_data["hp"]
+    enemy_hp = enemy["hp"]
+
+    embed = Embed(title=f"⚔️ Batalha Iniciada! ⚔️", color=Color.orange())
+    embed.set_thumbnail(url=enemy.get("thumb"))
+    embed.add_field(
+        name=interaction.user.display_name,
+        value=f"❤️ {player_hp}/{player_data['max_hp']}",
+        inline=True,
+    )
+    embed.add_field(
+        name=enemy["name"], value=f"❤️ {enemy_hp}/{enemy['hp']}", inline=True
+    )
+
+    # Envia a mensagem inicial da batalha
+    battle_message = await interaction.response.send_message(embed=embed)
+    battle_message = await interaction.original_response()
+
+    turn = 1
+    while player_hp > 0 and enemy_hp > 0:
+        await asyncio.sleep(2.5)  # Pausa entre turnos
+
+        # --- Turno do Jogador ---
+        player_dmg = 0
+        attack_type_name = ""
+        crit_msg = ""
+
+        # Lógica para o PRIMEIRO ataque (baseado na escolha do comando)
+        if turn == 1:
+            if initial_attack_style == "basico":
+                player_dmg = random.randint(
+                    player_data["attack"] // 2, player_data["attack"]
+                )
+                attack_type_name = "Ataque Básico"
+            elif initial_attack_style == "especial":
+                player_dmg = random.randint(
+                    int(player_data["special_attack"] * 0.8),
+                    int(player_data["special_attack"] * 1.5),
+                )
+                attack_type_name = "Ataque Especial"
+                # Dedução da energia para o ataque especial inicial
+                player_data["energy"] = max(0, player_data["energy"] - TRANSFORM_COST)
+        else:
+            # Para os turnos seguintes, o ataque é sempre básico
+            player_dmg = random.randint(
+                player_data["attack"] // 2, player_data["attack"]
+            )
+            attack_type_name = "Ataque Básico"
+
+        if random.random() < CRITICAL_CHANCE:
+            player_dmg = int(player_dmg * CRITICAL_MULTIPLIER)
+            crit_msg = "💥 **CRÍTICO!** "
+
+        enemy_hp -= player_dmg
+        log.append(
+            f"➡️ **Turno {turn}**: {crit_msg}Você usou **{attack_type_name}** e causou `{player_dmg}` de dano."
+        )
+        if len(log) > 5:
+            log.pop(0)
+
+        # Atualiza o embed
+        embed.description = "\n".join(log)
+        embed.set_field_at(
+            0,
+            name=interaction.user.display_name,
+            value=f"❤️ {max(0, player_hp)}/{player_data['max_hp']}",
+            inline=True,
+        )
+        embed.set_field_at(
+            1,
+            name=enemy["name"],
+            value=f"❤️ {max(0, enemy_hp)}/{enemy['hp']}",
+            inline=True,
+        )
+        await battle_message.edit(embed=embed)
+
+        if enemy_hp <= 0:
+            break  # Inimigo derrotado
+
+        await asyncio.sleep(2.5)  # Pausa antes do ataque do inimigo
+
+        # --- Turno do Inimigo ---
+        enemy_dmg = random.randint(enemy["attack"] // 2, enemy["attack"])
+        player_hp -= enemy_dmg
+
+        log.append(f"⬅️ {enemy['name']} ataca e causa `{enemy_dmg}` de dano.")
+        if len(log) > 5:
+            log.pop(0)
+
+        # Atualiza o embed
+        embed.description = "\n".join(log)
+        embed.set_field_at(
+            0,
+            name=interaction.user.display_name,
+            value=f"❤️ {max(0, player_hp)}/{player_data['max_hp']}",
+            inline=True,
+        )
+        await battle_message.edit(embed=embed)
+
+        turn += 1
+
+    # --- Fim da Batalha ---
+    final_embed = Embed()
+    player_database[str(interaction.user.id)]["hp"] = max(0, player_hp)
+
+    if player_hp <= 0:
+        final_embed.title = "☠️ Você Foi Derrotado!"
+        final_embed.color = Color.dark_red()
+        player_database[str(interaction.user.id)]["status"] = "dead"
+        player_database[str(interaction.user.id)]["deaths"] += 1
+        final_embed.description = f"O {enemy['name']} foi muito forte para você."
+    else:
+        final_embed.title = "🏆 Vitória! 🏆"
+        final_embed.color = Color.green()
+        final_embed.description = f"Você derrotou o {enemy['name']}!"
+        final_embed.add_field(
+            name="Recompensas", value=f"💰 +${enemy['money']}\n✨ +{enemy['xp']} XP"
+        )
+        player_database[str(interaction.user.id)]["money"] += enemy["money"]
+        player_database[str(interaction.user.id)]["xp"] += enemy["xp"]
+        await check_and_process_levelup(
+            player_database[str(interaction.user.id)], interaction
+        )
+
+    save_data()
+    await battle_message.edit(embed=final_embed)
 
 
 @bot.tree.command(name="atacar", description="Ataca outro jogador em um duelo.")
